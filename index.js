@@ -689,6 +689,9 @@ RedisClient.prototype.return_reply = function (reply) {
     } else if (this.pub_sub_mode || (command_obj && command_obj.sub_command)) {
         if (Array.isArray(reply)) {
             type = reply[0].toString();
+            if (command_obj && command_obj.command === 'pubsub') { // particular case because not returned by command as first arg
+                type = 'pubsub';
+            }
 
             if (type === "message") {
                 this.emit("message", reply[1].toString(), reply[2]); // channel, message
@@ -711,6 +714,10 @@ RedisClient.prototype.return_reply = function (reply) {
                     try_callback(command_obj.callback, reply1String);
                 }
                 this.emit(type, reply1String, reply[2]); // channel, count
+            } else if (type === "pubsub") {
+                if (command_obj && typeof command_obj.callback === "function") {
+                    try_callback(command_obj.callback, reply.toString());
+                }
             } else {
                 throw new Error("subscriptions are active but got unknown reply type " + type);
             }
@@ -824,7 +831,7 @@ RedisClient.prototype.send_command = function (command, args, callback) {
         return false;
     }
 
-    if (command === "subscribe" || command === "psubscribe" || command === "unsubscribe" || command === "punsubscribe") {
+    if (command === "subscribe" || command === "psubscribe" || command === "unsubscribe" || command === "punsubscribe" || command === "pubsub") {
         this.pub_sub_command(command_obj);
     } else if (command === "monitor") {
         this.monitoring = true;
